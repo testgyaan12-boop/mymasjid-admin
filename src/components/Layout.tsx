@@ -193,7 +193,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <div className="text-[12px] font-semibold text-[#0F172A] dark:text-white">{user?.name || 'Admin'}</div>
                     <div className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">{user?.email}</div>
                   </div>
-                  <button onClick={() => { setShowUserMenu(false); nav2('/users') }} className="w-full text-left px-3 py-2 text-[13px] text-[#64748B] hover:bg-[#F8FAFC] dark:hover:bg-white/5 dark:text-[#94A3B8] dark:hover:text-white transition">Profile</button>
+                  <button onClick={() => { setShowUserMenu(false); nav2('/profile') }} className="w-full text-left px-3 py-2 text-[13px] text-[#64748B] hover:bg-[#F8FAFC] dark:hover:bg-white/5 dark:text-[#94A3B8] dark:hover:text-white transition">Profile</button>
                   <button onClick={() => { setShowUserMenu(false); nav2('/audit') }} className="w-full text-left px-3 py-2 text-[13px] text-[#64748B] hover:bg-[#F8FAFC] dark:hover:bg-white/5 dark:text-[#94A3B8] dark:hover:text-white transition">Audit Logs</button>
                   <div className="border-t border-[#F1F5F9] dark:border-[#2a3042] mt-1 pt-1">
                     <button onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true) }} className="w-full text-left px-3 py-2 text-[13px] text-[#EF4444] hover:bg-red-50 dark:hover:bg-red-900/20 transition">Sign out</button>

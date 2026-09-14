@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { cmsApi, masterApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input, Label } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Settings, Clock, CalendarDays, Moon, Heart, SearchX, Bell, HandHeart, CreditCard, Receipt, BookOpen, Users, Info, Plus, Pencil, Trash2, X, ChevronRight, Loader2, Landmark, ToggleLeft, ToggleRight, Building2 } from 'lucide-react'
+import { Settings, Clock, CalendarDays, Moon, Heart, SearchX, Bell, HandHeart, CreditCard, Receipt, BookOpen, Users, Info, Plus, Pencil, Trash2, X, ChevronRight, Loader2, Landmark, ToggleLeft, ToggleRight, Building2, Search } from 'lucide-react'
 
 type Tab = {
   key: string
@@ -46,9 +46,28 @@ function FormField({ label, value, onChange, type = 'text', placeholder, require
   )
 }
 
-function CrudTable({ columns, data, onEdit, onDelete, onToggle, loading }: { columns: { key: string; label: string }[]; data: any[]; onEdit: (item: any) => void; onDelete: (item: any) => void; onToggle?: (item: any) => void; loading: boolean }) {
+function CrudTable({ columns, data, onEdit, onDelete, onToggle, loading, userMap }: { columns: { key: string; label: string }[]; data: any[]; onEdit: (item: any) => void; onDelete: (item: any) => void; onToggle?: (item: any) => void; loading: boolean; userMap?: Map<number, { name: string; email: string }> }) {
   if (loading) return <div className="flex items-center gap-2 py-8 text-[13px] text-[#94A3B8]"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div>
   if (data.length === 0) return <div className="py-10 text-center text-[13px] text-[#94A3B8]">No records found. Add one above.</div>
+
+  const formatDate = (d: any) => {
+    if (!d) return '—'
+    const date = new Date(d)
+    if (isNaN(date.getTime())) return '—'
+    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
+  const formatDateTime = (d: any) => {
+    if (!d) return '—'
+    const date = new Date(d)
+    if (isNaN(date.getTime())) return '—'
+    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
+  const getUserInfo = (id: any) => {
+    if (!id) return null
+    return userMap?.get(Number(id)) || null
+  }
 
   return (
     <div className="overflow-x-auto rounded-xl border border-[#E2E8F0] dark:border-[#2a3042]">
@@ -56,16 +75,24 @@ function CrudTable({ columns, data, onEdit, onDelete, onToggle, loading }: { col
         <thead>
           <tr className="bg-[#F8FAFC] dark:bg-[#141925] border-b border-[#E2E8F0] dark:border-[#2a3042]">
             {columns.map(c => <th key={c.key} className="text-left px-4 py-3 font-semibold text-[#64748B] dark:text-[#94A3B8] text-[11px] uppercase tracking-wider">{c.label}</th>)}
+            <th className="text-left px-4 py-3 font-semibold text-[#64748B] dark:text-[#94A3B8] text-[11px] uppercase tracking-wider">Created By</th>
+            <th className="text-left px-4 py-3 font-semibold text-[#64748B] dark:text-[#94A3B8] text-[11px] uppercase tracking-wider">Created At</th>
+            <th className="text-left px-4 py-3 font-semibold text-[#64748B] dark:text-[#94A3B8] text-[11px] uppercase tracking-wider">Updated By</th>
+            <th className="text-left px-4 py-3 font-semibold text-[#64748B] dark:text-[#94A3B8] text-[11px] uppercase tracking-wider">Updated At</th>
             <th className="text-right px-4 py-3 font-semibold text-[#64748B] dark:text-[#94A3B8] text-[11px] uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {data.map((item: any, i: number) => (
+          {data.map((item: any, i: number) => {
+            const isActive = item.active !== false && item.isActive !== false
+            const createdByUser = getUserInfo(item.createdBy)
+            const updatedByUser = getUserInfo(item.updatedBy)
+            return (
             <tr key={item.id || i} className="border-b border-[#F1F5F9] dark:border-[#1e2536] hover:bg-[#F8FAFC] dark:hover:bg-white/[0.02] transition-colors">
               {columns.map(c => (
                 <td key={c.key} className="px-4 py-3 text-[#0F172A] dark:text-[#E2E8F0] max-w-[200px] truncate">
                   {c.key === 'active' || c.key === 'isActive' ? (
-                    <Badge variant={item[c.key] ? 'success' : 'danger'} className="text-[10px]">{item[c.key] ? 'Active' : 'Inactive'}</Badge>
+                    <Badge variant={isActive ? 'success' : 'danger'} className="text-[10px]">{isActive ? 'Active' : 'Inactive'}</Badge>
                   ) : c.key === 'found' ? (
                     <Badge variant={item[c.key] ? 'info' : 'warning'} className="text-[10px]">{item[c.key] ? 'Found' : 'Missing'}</Badge>
                   ) : c.key === 'isRead' ? (
@@ -75,26 +102,59 @@ function CrudTable({ columns, data, onEdit, onDelete, onToggle, loading }: { col
                   )}
                 </td>
               ))}
+              {/* Created By */}
+              <td className="px-4 py-3">
+                {createdByUser ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#2563EB] to-[#3B82F6] flex items-center justify-center text-white text-[8px] font-bold shrink-0">{createdByUser.name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}</div>
+                    <div className="min-w-0">
+                      <div className="text-[12px] font-medium text-[#0F172A] dark:text-white truncate">{createdByUser.name}</div>
+                      <div className="text-[10px] text-[#94A3B8] truncate">{createdByUser.email}</div>
+                    </div>
+                  </div>
+                ) : <span className="text-[12px] text-[#94A3B8]">—</span>}
+              </td>
+              {/* Created At */}
+              <td className="px-4 py-3 text-[12px] text-[#64748B] dark:text-[#94A3B8] whitespace-nowrap">{formatDate(item.createdAt)}</td>
+              {/* Updated By */}
+              <td className="px-4 py-3">
+                {updatedByUser ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#8B5CF6] to-[#A78BFA] flex items-center justify-center text-white text-[8px] font-bold shrink-0">{updatedByUser.name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}</div>
+                    <div className="min-w-0">
+                      <div className="text-[12px] font-medium text-[#0F172A] dark:text-white truncate">{updatedByUser.name}</div>
+                      <div className="text-[10px] text-[#94A3B8] truncate">{updatedByUser.email}</div>
+                    </div>
+                  </div>
+                ) : <span className="text-[12px] text-[#94A3B8]">—</span>}
+              </td>
+              {/* Updated At */}
+              <td className="px-4 py-3 text-[12px] text-[#64748B] dark:text-[#94A3B8] whitespace-nowrap">{item.updatedAt ? formatDateTime(item.updatedAt) : '—'}</td>
               <td className="px-4 py-3 text-right">
                 <div className="flex items-center justify-end gap-1">
                   {onToggle && (
-                    <button onClick={() => onToggle(item)} className="p-1.5 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-white/5 transition" title={item.active !== false ? 'Deactivate' : 'Activate'}>
-                      {item.active !== false ? <ToggleRight className="w-4 h-4 text-[#10B981]" /> : <ToggleLeft className="w-4 h-4 text-[#94A3B8]" />}
+                    <button onClick={() => onToggle(item)} className="p-1.5 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-white/5 transition" title={isActive ? 'Deactivate' : 'Activate'}>
+                      {isActive ? <ToggleRight className="w-4 h-4 text-[#10B981]" /> : <ToggleLeft className="w-4 h-4 text-[#94A3B8]" />}
                     </button>
                   )}
-                  <button onClick={() => onEdit(item)} className="p-1.5 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-white/5 transition" title="Edit"><Pencil className="w-3.5 h-3.5 text-[#64748B]" /></button>
-                  <button onClick={() => onDelete(item)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Delete"><Trash2 className="w-3.5 h-3.5 text-[#EF4444]" /></button>
+                  {onEdit && (
+                    <button onClick={() => onEdit(item)} className="p-1.5 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-white/5 transition" title="Edit"><Pencil className="w-3.5 h-3.5 text-[#64748B]" /></button>
+                  )}
+                  {onDelete && (
+                    <button onClick={() => onDelete(item)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Delete"><Trash2 className="w-3.5 h-3.5 text-[#EF4444]" /></button>
+                  )}
                 </div>
               </td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>
   )
 }
 
-function ConfirmModal({ open, title, message, onConfirm, onCancel }: { open: boolean; title: string; message: string; onConfirm: () => void; onCancel: () => void }) {
+function ConfirmModal({ open, title, message, onConfirm, onCancel, confirmLabel = 'Delete', variant = 'destructive' }: { open: boolean; title: string; message: string; onConfirm: () => void; onCancel: () => void; confirmLabel?: string; variant?: string }) {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -104,7 +164,7 @@ function ConfirmModal({ open, title, message, onConfirm, onCancel }: { open: boo
         <p className="text-[13px] text-[#64748B] dark:text-[#94A3B8] mb-5">{message}</p>
         <div className="flex gap-3 justify-end">
           <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
-          <Button variant="destructive" size="sm" onClick={onConfirm}>Delete</Button>
+          <Button variant={variant as any} size="sm" onClick={onConfirm}>{confirmLabel}</Button>
         </div>
       </div>
     </div>
@@ -116,12 +176,26 @@ export default function Config() {
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
+  const [toggleTarget, setToggleTarget] = useState<any>(null)
   const [msg, setMsg] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
 
   const rawMasjidId = typeof window !== 'undefined' ? localStorage.getItem('current_masjid_id') : null
   const [masjidId, setMasjidId] = useState<number | null>(rawMasjidId ? Number(rawMasjidId) : null)
+  const [masjidSearch, setMasjidSearch] = useState('')
   const { data: masjids } = useQuery({ queryKey: ['masjids-config'], queryFn: async () => (await masterApi.masjids.list()).data })
+  const { data: allUsers } = useQuery({ queryKey: ['config-users'], queryFn: async () => { try { return (await masterApi.users.list()).data } catch { return [] } }, retry: false })
+
+  const userMap = useMemo(() => {
+    const map = new Map<number, { name: string; email: string }>()
+    ;(allUsers || []).forEach((u: any) => map.set(u.id, { name: u.name, email: u.email }))
+    return map
+  }, [allUsers])
+
+  const filteredMasjids = (masjids || []).filter((m: any) => {
+    const q = masjidSearch.toLowerCase()
+    return !q || m.name?.toLowerCase().includes(q) || m.city?.toLowerCase().includes(q)
+  })
 
   const selectMasjid = (id: number) => {
     localStorage.setItem('current_masjid_id', String(id))
@@ -141,9 +215,13 @@ export default function Config() {
             <div className="w-10 h-10 rounded-xl bg-[#DBEAFE] dark:bg-blue-900/30 flex items-center justify-center"><Building2 className="w-5 h-5 text-[#2563EB] dark:text-blue-400" /></div>
             <div><h3 className="text-[14px] font-semibold text-[#0F172A] dark:text-white">Choose a Masjid</h3><p className="text-[12px] text-[#94A3B8]">Pick which masjid to configure</p></div>
           </div>
-          {masjids?.length > 0 ? (
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+            <input value={masjidSearch} onChange={e => setMasjidSearch(e.target.value)} placeholder="Search by name or city..." className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] dark:border-[#2a3042] bg-[#F8FAFC] dark:bg-[#141925] text-[13px] text-[#0F172A] dark:text-white placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30" />
+          </div>
+          {filteredMasjids.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {masjids.map((m: any) => (
+              {filteredMasjids.map((m: any) => (
                 <button key={m.id} onClick={() => selectMasjid(m.id)} className="text-left bg-[#F8FAFC] dark:bg-[#141925] border border-[#E2E8F0] dark:border-[#2a3042] rounded-xl p-4 hover:border-[#2563EB] dark:hover:border-blue-500/40 hover:shadow-md transition-all duration-200 group">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#DBEAFE] to-[#BFDBFE] dark:from-blue-900/40 dark:to-blue-800/30 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"><Building2 className="w-4 h-4 text-[#2563EB] dark:text-blue-400" /></div>
@@ -156,7 +234,7 @@ export default function Config() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-[13px] text-[#94A3B8]">No masjids found. Create one from My Masjid Admin first.</div>
+            <div className="text-center py-8 text-[13px] text-[#94A3B8]">{masjidSearch ? 'No masjids match your search.' : 'No masjids found. Create one from My Masjid Admin first.'}</div>
           )}
         </div>
       </div>
@@ -210,7 +288,7 @@ export default function Config() {
 
         {/* Tab Content */}
         <div className="flex-1 min-w-0">
-          <TabContent key={`${activeTab}-${refreshKey}`} tab={activeTab} cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} msg={msg} setMsg={setMsg} refresh={refresh} />
+          <TabContent key={`${activeTab}-${refreshKey}`} tab={activeTab} cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} msg={msg} setMsg={setMsg} refresh={refresh} userMap={userMap} />
         </div>
       </div>
 
@@ -226,24 +304,38 @@ export default function Config() {
           setDeleteTarget(null)
         }
       }} onCancel={() => setDeleteTarget(null)} />
+
+      <ConfirmModal open={!!toggleTarget} title={toggleTarget?.nextActive === false ? 'Deactivate Record' : 'Activate Record'} message={toggleTarget?.nextActive === false ? 'This will deactivate this record. Users won\'t see it anymore. Continue?' : 'This will activate this record and make it visible to users. Continue?'} confirmLabel={toggleTarget?.nextActive === false ? 'Deactivate' : 'Activate'} variant={toggleTarget?.nextActive === false ? 'destructive' : 'indigo'} onConfirm={async () => {
+        if (toggleTarget) {
+          try {
+            await toggleTarget.onToggle()
+            setMsg(toggleTarget.nextActive === false ? 'Record deactivated' : 'Record activated')
+            refresh()
+          } catch (e: any) {
+            setMsg(e.response?.data?.message || 'Toggle failed')
+          }
+          setToggleTarget(null)
+        }
+      }} onCancel={() => setToggleTarget(null)} />
     </div>
   )
 }
 
-function TabContent({ tab, cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, msg, setMsg, refresh }: any) {
+function TabContent({ tab, cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, msg, setMsg, refresh, userMap }: any) {
+  const common = { userMap }
   switch (tab) {
-    case 'prayer': return <PrayerTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
-    case 'jumuah': return <JumuahTab cms={cms} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
-    case 'ramadan': return <RamadanTab cms={cms} setMsg={setMsg} refresh={refresh} />
-    case 'janazahs': return <JanazahTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
-    case 'gumshudas': return <GumshudaTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
-    case 'announcements': return <AnnouncementTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
-    case 'causes': return <CausesTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
-    case 'donations': return <DonationsTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
-    case 'expenses': return <ExpensesTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
-    case 'services': return <ServicesTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
-    case 'team': return <TeamTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
-    case 'sunnahs': return <SunnahTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setMsg={setMsg} refresh={refresh} />
+    case 'prayer': return <PrayerTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'jumuah': return <JumuahTab cms={cms} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'ramadan': return <RamadanTab cms={cms} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'janazahs': return <JanazahTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'gumshudas': return <GumshudaTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'announcements': return <AnnouncementTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'causes': return <CausesTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'donations': return <DonationsTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'expenses': return <ExpensesTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'services': return <ServicesTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'team': return <TeamTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
+    case 'sunnahs': return <SunnahTab cms={cms} showForm={showForm} setShowForm={setShowForm} editItem={editItem} setEditItem={setEditItem} setDeleteTarget={setDeleteTarget} setToggleTarget={setToggleTarget} setMsg={setMsg} refresh={refresh} {...common} />
     default: return null
   }
 }
@@ -265,7 +357,7 @@ function FormModal({ open, title, onClose, children }: { open: boolean; title: s
 }
 
 // ========== PRAYER TIMES ==========
-function PrayerTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setMsg, refresh }: any) {
+function PrayerTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ prayerName: '', azaanTime: '', prayerTime: '' })
@@ -283,7 +375,7 @@ function PrayerTab({ cms, showForm, setShowForm, editItem, setEditItem, setDelet
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Prayer Times</h2><p className="text-[12px] text-[#94A3B8]">{data.length} entries</p></div>
         <Button size="sm" onClick={() => { setForm({ prayerName: '', azaanTime: '', prayerTime: '' }); setEditItem(null); setShowForm(true) }} className="gap-1.5 rounded-[10px]"><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'name', label: 'Prayer' }, { key: 'azaan', label: 'Azaan' }, { key: 'time', label: 'Jamaat' }]} data={data} loading={loading}
+      <CrudTable columns={[{ key: 'name', label: 'Prayer' }, { key: 'azaan', label: 'Azaan' }, { key: 'time', label: 'Jamaat' }]} data={data} loading={loading} userMap={userMap}
         onEdit={(item: any) => { setForm({ prayerName: item.name, azaanTime: item.azaan, prayerTime: item.time }); setEditItem(item); setShowForm(true) }}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { const updated = data.filter(d => d.id !== item.id); await cms.prayerTimes.save(updated); fetchData() } })} />
       <FormModal open={showForm} title={editItem ? 'Edit Prayer Time' : 'Add Prayer Time'} onClose={() => { setShowForm(false); setEditItem(null) }}>
@@ -301,7 +393,7 @@ function PrayerTab({ cms, showForm, setShowForm, editItem, setEditItem, setDelet
 }
 
 // ========== JUMUAH ==========
-function JumuahTab({ cms, setDeleteTarget, setMsg, refresh }: any) {
+function JumuahTab({ cms, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -320,7 +412,7 @@ function JumuahTab({ cms, setDeleteTarget, setMsg, refresh }: any) {
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Jumuah Settings</h2><p className="text-[12px] text-[#94A3B8]">{data.length} jamaat(s), max 3</p></div>
         <Button size="sm" onClick={() => setShowForm(true)} className="gap-1.5 rounded-[10px]" disabled={data.length >= 3}><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'time', label: 'Jamaat Time' }]} data={data} loading={loading}
+      <CrudTable columns={[{ key: 'time', label: 'Jamaat Time' }]} data={data} loading={loading} userMap={userMap}
         onEdit={(item: any) => { setForm({ prayerTime: item.time || '', azaanTime: '' }); setShowForm(true) }}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { const updated = data.filter((d: any) => d.id !== item.id); await cms.jumuahs.save(updated); fetchData() } })} />
       <FormModal open={showForm} title="Add Jumuah" onClose={() => setShowForm(false)}>
@@ -335,7 +427,7 @@ function JumuahTab({ cms, setDeleteTarget, setMsg, refresh }: any) {
 }
 
 // ========== RAMADAN ==========
-function RamadanTab({ cms }: any) {
+function RamadanTab({ cms, userMap }: any) {
   const [config, setConfig] = useState<any>(null)
   const [days, setDays] = useState<any[]>([])
   const [showDaysForm, setShowDaysForm] = useState(false)
@@ -394,7 +486,7 @@ function RamadanTab({ cms }: any) {
 }
 
 // ========== JANAZAH ==========
-function JanazahTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setMsg, refresh }: any) {
+function JanazahTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ title: '', time: '', location: '', active: 'true' })
@@ -402,10 +494,7 @@ function JanazahTab({ cms, showForm, setShowForm, editItem, setEditItem, setDele
   useEffect(() => { fetchData() }, [fetchData, refresh])
 
   const handleSave = async () => {
-    try {
-      if (editItem) { await cms.janazahs.toggle(editItem.id) } else { await cms.janazahs.create({ ...form, active: form.active === 'true' }) }
-      setMsg(editItem ? 'Toggled' : 'Added'); setShowForm(false); setEditItem(null); setForm({ title: '', time: '', location: '', active: 'true' }); fetchData()
-    } catch (e: any) { setMsg(e.response?.data?.message || 'Failed') }
+    try { await cms.janazahs.create({ ...form, active: form.active === 'true' }); setMsg('Added'); setShowForm(false); setForm({ title: '', time: '', location: '', active: 'true' }); fetchData() } catch (e: any) { setMsg(e.response?.data?.message || 'Failed') }
   }
 
   return (
@@ -414,8 +503,9 @@ function JanazahTab({ cms, showForm, setShowForm, editItem, setEditItem, setDele
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Janazahs</h2><p className="text-[12px] text-[#94A3B8]">{data.length} records</p></div>
         <Button size="sm" onClick={() => { setForm({ title: '', time: '', location: '', active: 'true' }); setEditItem(null); setShowForm(true) }} className="gap-1.5 rounded-[10px]"><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'time', label: 'Time' }, { key: 'location', label: 'Location' }, { key: 'active', label: 'Status' }]} data={data} loading={loading}
-        onEdit={(item: any) => cms.janazahs.toggle(item.id).then(() => { setMsg('Toggled'); fetchData() })}
+      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'time', label: 'Time' }, { key: 'location', label: 'Location' }, { key: 'active', label: 'Status' }]} data={data} loading={loading} userMap={userMap}
+        onEdit={null}
+        onToggle={(item: any) => setToggleTarget({ nextActive: item.active === false, onToggle: async () => { await cms.janazahs.toggle(item.id); fetchData() } })}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { await cms.janazahs.delete(item.id); fetchData() } })} />
       <FormModal open={showForm} title="Add Janazah" onClose={() => { setShowForm(false); setEditItem(null) }}>
         <div className="space-y-4">
@@ -433,7 +523,7 @@ function JanazahTab({ cms, showForm, setShowForm, editItem, setEditItem, setDele
 }
 
 // ========== GUMSHUDA ==========
-function GumshudaTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setMsg, refresh }: any) {
+function GumshudaTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ title: '', contact: '', description: '', active: 'true' })
@@ -450,8 +540,9 @@ function GumshudaTab({ cms, showForm, setShowForm, editItem, setEditItem, setDel
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Gumshudas</h2><p className="text-[12px] text-[#94A3B8]">{data.length} records</p></div>
         <Button size="sm" onClick={() => { setForm({ title: '', contact: '', description: '', active: 'true' }); setEditItem(null); setShowForm(true) }} className="gap-1.5 rounded-[10px]"><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'contact', label: 'Contact' }, { key: 'description', label: 'Description' }, { key: 'active', label: 'Status' }]} data={data} loading={loading}
-        onEdit={(item: any) => cms.gumshudas.toggle(item.id).then(() => { setMsg('Toggled'); fetchData() })}
+      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'contact', label: 'Contact' }, { key: 'description', label: 'Description' }, { key: 'active', label: 'Status' }]} data={data} loading={loading} userMap={userMap}
+        onEdit={null}
+        onToggle={(item: any) => setToggleTarget({ nextActive: item.active === false, onToggle: async () => { await cms.gumshudas.toggle(item.id); fetchData() } })}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { await cms.gumshudas.delete(item.id); fetchData() } })} />
       <FormModal open={showForm} title="Add Gumshuda" onClose={() => { setShowForm(false); setEditItem(null) }}>
         <div className="space-y-4">
@@ -467,7 +558,7 @@ function GumshudaTab({ cms, showForm, setShowForm, editItem, setEditItem, setDel
 }
 
 // ========== ANNOUNCEMENTS ==========
-function AnnouncementTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setMsg, refresh }: any) {
+function AnnouncementTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ title: '', description: '', active: 'true' })
@@ -484,8 +575,9 @@ function AnnouncementTab({ cms, showForm, setShowForm, editItem, setEditItem, se
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Announcements</h2><p className="text-[12px] text-[#94A3B8]">{data.length} records</p></div>
         <Button size="sm" onClick={() => { setForm({ title: '', description: '', active: 'true' }); setEditItem(null); setShowForm(true) }} className="gap-1.5 rounded-[10px]"><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'description', label: 'Description' }, { key: 'active', label: 'Status' }]} data={data} loading={loading}
-        onEdit={(item: any) => cms.announcements.toggle(item.id).then(() => { setMsg('Toggled'); fetchData() })}
+      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'description', label: 'Description' }, { key: 'active', label: 'Status' }]} data={data} loading={loading} userMap={userMap}
+        onEdit={null}
+        onToggle={(item: any) => setToggleTarget({ nextActive: item.active === false, onToggle: async () => { await cms.announcements.toggle(item.id); fetchData() } })}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { await cms.announcements.delete(item.id); fetchData() } })} />
       <FormModal open={showForm} title="Add Announcement" onClose={() => { setShowForm(false); setEditItem(null) }}>
         <div className="space-y-4">
@@ -500,7 +592,7 @@ function AnnouncementTab({ cms, showForm, setShowForm, editItem, setEditItem, se
 }
 
 // ========== DONATION CAUSES ==========
-function CausesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setMsg, refresh }: any) {
+function CausesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ title: '', description: '', amount: '' })
@@ -517,7 +609,7 @@ function CausesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDelet
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Donation Causes</h2><p className="text-[12px] text-[#94A3B8]">{data.length} causes</p></div>
         <Button size="sm" onClick={() => { setForm({ title: '', description: '', amount: '' }); setEditItem(null); setShowForm(true) }} className="gap-1.5 rounded-[10px]"><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'description', label: 'Description' }, { key: 'amount', label: 'Amount' }]} data={data} loading={loading}
+      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'description', label: 'Description' }, { key: 'amount', label: 'Amount' }]} data={data} loading={loading} userMap={userMap}
         onEdit={(item: any) => { setForm({ title: item.title || '', description: item.description || '', amount: String(item.amount || '') }); setEditItem(item); setShowForm(true) }}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { await cms.donationCauses.delete(item.id); fetchData() } })} />
       <FormModal open={showForm} title={editItem ? 'Edit Cause' : 'Add Donation Cause'} onClose={() => { setShowForm(false); setEditItem(null) }}>
@@ -533,7 +625,7 @@ function CausesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDelet
 }
 
 // ========== MONTHLY DONATIONS ==========
-function DonationsTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setMsg, refresh }: any) {
+function DonationsTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ title: '', amount: '', contact: '' })
@@ -550,7 +642,7 @@ function DonationsTab({ cms, showForm, setShowForm, editItem, setEditItem, setDe
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Monthly Donations</h2><p className="text-[12px] text-[#94A3B8]">{data.length} donors</p></div>
         <Button size="sm" onClick={() => { setForm({ title: '', amount: '', contact: '' }); setEditItem(null); setShowForm(true) }} className="gap-1.5 rounded-[10px]"><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'title', label: 'Name' }, { key: 'amount', label: 'Amount' }, { key: 'contact', label: 'Contact' }]} data={data} loading={loading}
+      <CrudTable columns={[{ key: 'title', label: 'Name' }, { key: 'amount', label: 'Amount' }, { key: 'contact', label: 'Contact' }]} data={data} loading={loading} userMap={userMap}
         onEdit={(item: any) => { setForm({ title: item.title || '', amount: String(item.amount || ''), contact: item.contact || '' }); setEditItem(item); setShowForm(true) }}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { await cms.monthlyDonations.delete(item.id); fetchData() } })} />
       <FormModal open={showForm} title={editItem ? 'Edit Donation' : 'Add Monthly Donation'} onClose={() => { setShowForm(false); setEditItem(null) }}>
@@ -568,7 +660,7 @@ function DonationsTab({ cms, showForm, setShowForm, editItem, setEditItem, setDe
 }
 
 // ========== EXPENSES ==========
-function ExpensesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setMsg, refresh }: any) {
+function ExpensesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ title: '', amount: '', description: '' })
@@ -585,7 +677,7 @@ function ExpensesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDel
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Expenses</h2><p className="text-[12px] text-[#94A3B8]">{data.length} records</p></div>
         <Button size="sm" onClick={() => { setForm({ title: '', amount: '', description: '' }); setEditItem(null); setShowForm(true) }} className="gap-1.5 rounded-[10px]"><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'amount', label: 'Amount' }, { key: 'description', label: 'Description' }]} data={data} loading={loading}
+      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'amount', label: 'Amount' }, { key: 'description', label: 'Description' }]} data={data} loading={loading} userMap={userMap}
         onEdit={(item: any) => { setForm({ title: item.title || '', amount: String(item.amount || ''), description: item.description || '' }); setEditItem(item); setShowForm(true) }}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { await cms.expenses.delete(item.id); fetchData() } })} />
       <FormModal open={showForm} title={editItem ? 'Edit Expense' : 'Add Expense'} onClose={() => { setShowForm(false); setEditItem(null) }}>
@@ -601,7 +693,7 @@ function ExpensesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDel
 }
 
 // ========== SERVICES ==========
-function ServicesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setMsg, refresh }: any) {
+function ServicesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ title: '', description: '' })
@@ -618,7 +710,7 @@ function ServicesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDel
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Services</h2><p className="text-[12px] text-[#94A3B8]">{data.length} services</p></div>
         <Button size="sm" onClick={() => { setForm({ title: '', description: '' }); setEditItem(null); setShowForm(true) }} className="gap-1.5 rounded-[10px]"><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'description', label: 'Description' }]} data={data} loading={loading}
+      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'description', label: 'Description' }]} data={data} loading={loading} userMap={userMap}
         onEdit={(item: any) => { setForm({ title: item.title || '', description: item.description || '' }); setEditItem(item); setShowForm(true) }}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { await cms.services.delete(item.id); fetchData() } })} />
       <FormModal open={showForm} title={editItem ? 'Edit Service' : 'Add Service'} onClose={() => { setShowForm(false); setEditItem(null) }}>
@@ -633,7 +725,7 @@ function ServicesTab({ cms, showForm, setShowForm, editItem, setEditItem, setDel
 }
 
 // ========== TEAM MEMBERS ==========
-function TeamTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setMsg, refresh }: any) {
+function TeamTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ name: '', role: '', phone: '', email: '', image: '' })
@@ -650,7 +742,7 @@ function TeamTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteT
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Team Members</h2><p className="text-[12px] text-[#94A3B8]">{data.length} members</p></div>
         <Button size="sm" onClick={() => { setForm({ name: '', role: '', phone: '', email: '', image: '' }); setEditItem(null); setShowForm(true) }} className="gap-1.5 rounded-[10px]"><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'name', label: 'Name' }, { key: 'role', label: 'Role' }, { key: 'phone', label: 'Phone' }, { key: 'email', label: 'Email' }]} data={data} loading={loading}
+      <CrudTable columns={[{ key: 'name', label: 'Name' }, { key: 'role', label: 'Role' }, { key: 'phone', label: 'Phone' }, { key: 'email', label: 'Email' }]} data={data} loading={loading} userMap={userMap}
         onEdit={(item: any) => { setForm({ name: item.name || '', role: item.role || '', phone: item.phone || '', email: item.email || '', image: item.image || '' }); setEditItem(item); setShowForm(true) }}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { await cms.teamMembers.delete(item.id); fetchData() } })} />
       <FormModal open={showForm} title={editItem ? 'Edit Team Member' : 'Add Team Member'} onClose={() => { setShowForm(false); setEditItem(null) }}>
@@ -670,7 +762,7 @@ function TeamTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteT
 }
 
 // ========== SUNNAHS ==========
-function SunnahTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setMsg, refresh }: any) {
+function SunnahTab({ cms, showForm, setShowForm, editItem, setEditItem, setDeleteTarget, setToggleTarget, setMsg, refresh, userMap }: any) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ title: '', arabic: '', transliteration: '', meaning: '', category: '' })
@@ -687,7 +779,7 @@ function SunnahTab({ cms, showForm, setShowForm, editItem, setEditItem, setDelet
         <div><h2 className="text-[16px] font-bold text-[#0F172A] dark:text-white">Sunnahs</h2><p className="text-[12px] text-[#94A3B8]">{data.length} sunnahs</p></div>
         <Button size="sm" onClick={() => { setForm({ title: '', arabic: '', transliteration: '', meaning: '', category: '' }); setEditItem(null); setShowForm(true) }} className="gap-1.5 rounded-[10px]"><Plus className="w-3.5 h-3.5" /> Add</Button>
       </div>
-      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'category', label: 'Category' }, { key: 'meaning', label: 'Meaning' }]} data={data} loading={loading}
+      <CrudTable columns={[{ key: 'title', label: 'Title' }, { key: 'category', label: 'Category' }, { key: 'meaning', label: 'Meaning' }]} data={data} loading={loading} userMap={userMap}
         onEdit={(item: any) => { setForm({ title: item.title || '', arabic: item.arabic || '', transliteration: item.transliteration || '', meaning: item.meaning || '', category: item.category || '' }); setEditItem(item); setShowForm(true) }}
         onDelete={(item: any) => setDeleteTarget({ onDelete: async () => { await cms.sunnahs.delete(item.id); fetchData() } })} />
       <FormModal open={showForm} title={editItem ? 'Edit Sunnah' : 'Add Sunnah'} onClose={() => { setShowForm(false); setEditItem(null) }}>

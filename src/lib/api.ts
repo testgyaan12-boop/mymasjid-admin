@@ -25,6 +25,8 @@ api.interceptors.response.use(
 export const authApi = {
   login: (data: { email: string; password: string }) => api.post('/master/auth/login', data),
   refresh: (refreshToken: string) => api.post('/master/auth/refresh', { refreshToken }),
+  getProfile: () => api.get('/master/auth/profile'),
+  updateProfile: (data: { name?: string; phone?: string; avatar?: string }) => api.put('/master/auth/profile', data),
 }
 
 export const masterApi = {
@@ -96,6 +98,7 @@ export const masterApi = {
   campaigns: {
     list: () => api.get('/master/campaigns'),
     send: (data:any) => api.post('/master/campaigns', data),
+    delete: (id: number) => api.delete(`/master/campaigns/${id}`),
   },
   upload: (file: File) => {
     const fd = new FormData()

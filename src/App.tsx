@@ -14,6 +14,7 @@ import Campaign from '@/pages/Campaign'
 import Notifications from '@/pages/Notifications'
 import Audit from '@/pages/Audit'
 import Config from '@/pages/Config'
+import Profile from '@/pages/Profile'
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, hydrated, init } = useAuth()
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
         <Route path="/audit" element={<Protected><Audit /></Protected>} />
         <Route path="/config" element={<Protected><Config /></Protected>} />
+        <Route path="/profile" element={<Protected><Profile /></Protected>} />
       </Routes>
     </BrowserRouter>
   )
