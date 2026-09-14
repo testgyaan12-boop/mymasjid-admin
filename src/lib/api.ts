@@ -61,6 +61,7 @@ export const masterApi = {
     toggleUser: (masjidId:number, userId:number, active:boolean, remark:string)=> api.put(`/master/masjids/${masjidId}/users/${userId}/status`, { active, remark }),
     deleteUser: (masjidId:number, userId:number, remark:string)=> api.delete(`/master/masjids/${masjidId}/users/${userId}`, { data: { remark } } as any),
     create: (data:any)=> api.post('/master/masjids', data),
+    verify: (id:number, action:string, remark?:string)=> api.put(`/master/masjids/${id}/verify`, { action, remark }),
     donations: (id:number)=> api.get(`/master/masjids/${id}/donations`),
     causes: (id:number)=> api.get(`/master/masjids/${id}/causes`),
     janazahs: (id:number)=> api.get(`/master/masjids/${id}/janazahs`),

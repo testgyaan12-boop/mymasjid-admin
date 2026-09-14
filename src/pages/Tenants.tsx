@@ -35,10 +35,10 @@ export default function Tenants() {
           <div className="flex items-center gap-1.5 text-[12px] text-[#94A3B8]">
             <Link to="/" className="hover:text-[#2563EB] transition-colors">Dashboard</Link>
             <ChevronRight className="w-3 h-3" />
-            <span className="text-[#64748B] dark:text-[#94A3B8] font-medium">My Masjid Admin</span>
+            <span className="text-[#64748B] dark:text-[#94A3B8] font-medium">My Masjid</span>
           </div>
           <div className="flex items-center gap-3">
-            <h1 className="text-[26px] md:text-[28px] font-bold text-[#0F172A] dark:text-white tracking-tight">My Masjid Admin</h1>
+            <h1 className="text-[26px] md:text-[28px] font-bold text-[#0F172A] dark:text-white tracking-tight">My Masjid</h1>
             <Badge className="bg-[#DBEAFE] dark:bg-blue-900/30 text-[#2563EB] dark:text-blue-400 text-[11px] font-bold px-2.5 py-0.5 rounded-full">{list.length} Masjid{list.length !== 1 ? 's' : ''}</Badge>
           </div>
           <p className="text-[13px] text-[#64748B] dark:text-[#94A3B8]">Manage your masjids, administrators, and mapped users from one place.</p>

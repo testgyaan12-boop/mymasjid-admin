@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { masterApi } from '@/lib/api'
 import { useAuth } from '@/store/auth'
 import { Badge } from '@/components/ui/badge'
-import { Boxes, Building2, Users, ShieldCheck, TrendingUp, Activity, ArrowUpRight, Clock, Megaphone, Bell, ScrollText, Calendar, RefreshCw, User } from 'lucide-react'
+import { Boxes, Building2, Users, ShieldCheck, TrendingUp, Activity, ArrowUpRight, Clock, Megaphone, Bell, ScrollText, Calendar, RefreshCw, User, Mosque, Inbox } from 'lucide-react'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area } from 'recharts'
 import { Link } from 'react-router-dom'
 
@@ -37,6 +37,7 @@ export default function Dashboard() {
   const { data, isLoading } = useQuery({ queryKey: ['overview'], queryFn: async () => (await masterApi.overview()).data })
   const { data: audits } = useQuery({ queryKey: ['audit'], queryFn: async () => (await masterApi.audit.list()).data })
   const { data: monthly } = useQuery({ queryKey: ['monthly'], queryFn: async () => (await masterApi.analytics.monthly()).data })
+  const { data: masjids } = useQuery({ queryKey: ['masjids-all'], queryFn: async () => (await masterApi.masjids.list()).data ?? [] })
 
   if (isLoading) return <DashboardSkeleton />
 
@@ -44,11 +45,13 @@ export default function Dashboard() {
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 
+  const leadCount = (masjids || []).filter((m: any) => m.isDeleted !== 1 && (!m.adminVerified || m.adminVerified === 'PENDING')).length
+
   const kpiData = [
-    { label: 'Total Projects', value: data?.totalProjects ?? 0, icon: Boxes, color: '#2563EB', lightBg: '#DBEAFE', trend: '+7%', sparkData: [1, 2, 2, 2] },
-    { label: 'Total Tenants', value: data?.totalTenants ?? 0, icon: Building2, color: '#10B981', lightBg: '#D1FAE5', trend: '+10%', sparkData: [0, 1, 1, 1] },
+    { label: 'Total Masjid', value: data?.totalMasjids ?? (masjids?.length || 0), icon: Mosque, color: '#8B5CF6', lightBg: '#EDE9FE', trend: '+12%', sparkData: [0, 1, 1, 2] },
+    { label: 'Total Lead', value: leadCount, icon: Inbox, color: '#2563EB', lightBg: '#DBEAFE', trend: '+7%', sparkData: [1, 2, 2, 2] },
     { label: 'Total Users', value: data?.totalUsers ?? 0, icon: Users, color: '#F97316', lightBg: '#FFF7ED', trend: '+11%', sparkData: [8, 11, 14, 16] },
-    { label: 'Total Masjids', value: data?.totalMasjids ?? 0, icon: ShieldCheck, color: '#8B5CF6', lightBg: '#EDE9FE', trend: '+12%', sparkData: [0, 1, 1, 2] },
+    { label: 'Total Tenants', value: data?.totalTenants ?? 0, icon: Building2, color: '#10B981', lightBg: '#D1FAE5', trend: '+10%', sparkData: [0, 1, 1, 1] },
   ]
 
   const masjidData = (monthly?.masjidOnboard || []).map((m: any) => ({ month: m.month, count: Number(m.count) }))

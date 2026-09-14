@@ -234,7 +234,7 @@ export default function Config() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-[13px] text-[#94A3B8]">{masjidSearch ? 'No masjids match your search.' : 'No masjids found. Create one from My Masjid Admin first.'}</div>
+            <div className="text-center py-8 text-[13px] text-[#94A3B8]">{masjidSearch ? 'No masjids match your search.' : 'No masjids found. Create one from My Masjid first.'}</div>
           )}
         </div>
       </div>

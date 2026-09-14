@@ -1,13 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/store/auth'
 import { Button } from '@/components/ui/button'
-import { LayoutDashboard, Boxes, Users, Bell, ScrollText, Building2, LogOut, ShieldCheck, Menu, X, Megaphone, Search, ChevronDown, Sparkles, Sun, Moon, Settings } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Bell, ScrollText, Building2, LogOut, ShieldCheck, Menu, X, Megaphone, Search, ChevronDown, Sparkles, Sun, Moon, Settings } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
 const nav = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/projects', label: 'Projects', icon: Boxes },
-  { path: '/tenants', label: 'My Masjid Admin', icon: Building2 },
+  { path: '/projects', label: 'My Lead', icon: ClipboardList },
+  { path: '/tenants', label: 'My Masjid', icon: Building2 },
   { path: '/users', label: 'Users', icon: Users },
   { path: '/campaign', label: 'Campaign', icon: Megaphone },
   { path: '/notifications', label: 'Notifications', icon: Bell },
